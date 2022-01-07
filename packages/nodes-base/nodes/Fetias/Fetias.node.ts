@@ -1,18 +1,23 @@
 import { read } from 'fs';
+import { values } from 'lodash';
 import {
 	IExecuteFunctions,
 } from 'n8n-core';
 
 import {
+	ILoadOptionsFunctions,
 	IDataObject,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	INodePropertyOptions,
 } from 'n8n-workflow';
 
 import {
 	OptionsWithUri,
 } from 'request';
+import { getWorkspaces } from '../Asana/GenericFunctions';
+import { getValue } from '../Salesforce/GenericFunctions';
 
 import {
 	apiRequest,
@@ -64,8 +69,14 @@ export class Fetias implements INodeType {
 				},
 				{
 					displayName: 'Workspace',
-					name: 'workspace',
-					type: 'string',
+					//wid  is worksapce id
+					name: 'wid',
+					type: 'options',
+					typeOptions: {
+						loadOptionsMethod: 'getWorkspace',
+					},
+					options: [],
+					default: '',
 					required: true,
 					displayOptions: {
 						show: {
@@ -75,13 +86,18 @@ export class Fetias implements INodeType {
 
 						},
 					},
-					default:'',
-					description:'Workspace to acess',
+					description: 'Please select Workspace to access',
 				},
 				{
 					displayName: 'Module',
-					name: 'module',
-					type: 'string',
+					//mid  is module id
+					name: 'mid',
+					type: 'options',
+					typeOptions: {
+						loadOptionsMethod: 'getModule',
+					},
+					options: [],
+					default: '',
 					required: true,
 					displayOptions: {
 						show: {
@@ -91,8 +107,7 @@ export class Fetias implements INodeType {
 
 						},
 					},
-					default:'',
-					description:'Module to acess',
+					description: 'Please select Module to access',
 				},
 				// {
 				// 	displayName: 'Additional Fields',
@@ -205,6 +220,45 @@ export class Fetias implements INodeType {
 		return [this.helpers.returnJsonArray(returnData)];
 	}
 
+	methods = {
+		loadOptions: {
+			// Get all the available devices to display them to user so that he can
+			// select them easily
+			async getWorkspace(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+			let	requestMethod = 'GET';
+		  let	endpoint = `Workspace?search=`;
+			const body: IDataObject = {};
+			const qs: IDataObject = {};
+			const returnData: INodePropertyOptions[] = [];
+			const workspaces = await apiRequest.call(this, requestMethod, endpoint, body, qs);
+			for (const workspace of workspaces) {
+				returnData.push({
+					name: workspace.name,
+					value: workspace.id,
+				});
+				}
+				return returnData;
 
+			},
+			// Get all the available notifications to display them to user so that he can
+			// select them easily
+			async getModule(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const returnData: INodePropertyOptions[] = [];
+				const wid = this.getNodeParameter('wid', 0) as string;
+				let	requestMethod = 'GET';
+				let	endpoint = `Workspace/${wid}`;
+				const body: IDataObject = {};
+				const qs: IDataObject = {};
+				const modules = await apiRequest.call(this, requestMethod, endpoint, body, qs);
+					for (const module of modules) {
+						returnData.push({
+							name: module.name,
+							value: module.id,
+					});
+				}
+				return returnData;
+			},
+		},
+	};
 
 }
